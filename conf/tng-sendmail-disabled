@@ -1,0 +1,15 @@
+#!/bin/sh
+# TNG mail() stub.
+#
+# The old nginx-php8-fpm image shipped /usr/sbin/sendmail -> busybox with no MTA running and
+# no SMTP relay configured (TNG's $tngconfig['usesmtp'] is "0"), so mail() already returned
+# false on every call.
+#
+# This stub keeps that behaviour: drain the message so PHP's pipe write completes cleanly,
+# then exit non-zero so mail() reports failure. Without it, PHP would warn
+# "Could not execute mail delivery program '/usr/sbin/sendmail -t -i'".
+#
+# If TNG mail is ever wanted: set usesmtp=1 with real SMTP settings in TNG's admin, which
+# bypasses sendmail_path entirely.
+cat >/dev/null 2>&1
+exit 1

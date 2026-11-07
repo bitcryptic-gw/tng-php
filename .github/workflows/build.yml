@@ -1,0 +1,71 @@
+name: Build and push tng-php
+
+# Rebuild triggers:
+#   * every push to main
+#   * weekly schedule (picks up the latest php:8.5-apache patch automatically)
+#   * manual dispatch
+#
+# --pull is always set, so each rebuild rebuilds on top of the newest base image.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  schedule:
+    # Mondays 03:17 UTC
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+env:
+  IMAGE: bitcryptic/tng-php
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        run: |
+          set -euo pipefail
+          date_tag="$(date -u +%Y.%m.%d)"
+          tag="$date_tag"
+          n=1
+          # Same-day rebuilds get -1, -2, ... so a dated tag is never overwritten.
+          while docker buildx imagetools inspect "${IMAGE}:${tag}" >/dev/null 2>&1; do
+            tag="${date_tag}-${n}"
+            n=$((n + 1))
+          done
+          echo "date_tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Building ${IMAGE}:8.5 and ${IMAGE}:${tag}"
+
+      - name: Build and push
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --platform linux/amd64 \
+            --pull \
+            --push \
+            --tag "${IMAGE}:8.5" \
+            --tag "${IMAGE}:${{ steps.tags.outputs.date_tag }}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            .
+
+      - name: Report digest
+        run: |
+          docker buildx imagetools inspect "${IMAGE}:8.5" | head -20
