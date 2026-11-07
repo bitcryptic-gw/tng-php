@@ -81,6 +81,15 @@ docker buildx build \
 
 ## Notes
 
+* **PDF thumbnails:** ghostscript is deliberately **not** installed. The old image never had it, so
+  Imagick had no PDF decode delegate and PDF thumbnails never worked in production. TNG's
+  `image_createThumb()` (`imageutils.php:77`) calls `new Imagick()` unguarded on the PDF branch, so a
+  PDF upload throws an `ImagickException` — the same failure the live site produces today. Shipping a
+  large PDF parser would add attack surface, not parity. If PDF thumbnails are ever wanted, install
+  `ghostscript` in the final stage and re-test that path.
+* **No build toolchain at runtime.** Extensions are compiled in a build stage against `-dev` packages;
+  the final image installs runtime libraries only, and the base image's `PHPIZE_DEPS` (gcc, make,
+  autoconf, …) are purged. Image size 843 MiB → 553 MiB.
 * **Mail:** TNG's `usesmtp` is `0` and no MTA/relay is configured, so mail already failed on the old
   image. `sendmail_path` points at a stub that drains the message and exits 1, keeping `mail()`
   returning `false` without a PHP warning. To enable mail, configure SMTP in TNG admin (`usesmtp=1`).
