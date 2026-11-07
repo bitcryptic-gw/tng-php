@@ -81,6 +81,10 @@ docker buildx build \
 
 ## Notes
 
+* **Real client IP:** `mod_remoteip` trusts `X-Forwarded-For` from **caddy-linode only**
+  (`100.76.221.87`), and the access log uses `%a`, so Apache and TNG see the visitor rather than
+  the proxy. Without it every request logged as the proxy's address.
+
 * **PDF thumbnails:** ghostscript is deliberately **not** installed. The old image never had it, so
   Imagick had no PDF decode delegate and PDF thumbnails never worked in production. TNG's
   `image_createThumb()` (`imageutils.php:77`) calls `new Imagick()` unguarded on the PDF branch, so a

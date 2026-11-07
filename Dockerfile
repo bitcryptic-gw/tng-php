@@ -98,8 +98,11 @@ COPY conf/tng-sendmail-disabled /usr/local/bin/tng-sendmail-disabled
 RUN set -eux; \
     chmod 0755 /usr/local/bin/tng-sendmail-disabled; \
     a2enconf zz-tng; \
+    a2enmod remoteip; \
     a2dismod -f autoindex; \
     a2dismod status || true; \
+    sed -i 's|access\.log combined$|access.log tngcombined|' /etc/apache2/sites-available/000-default.conf; \
+    grep -q 'access.log tngcombined' /etc/apache2/sites-available/000-default.conf; \
     php -m | grep -qx mysqli; \
     php -m | grep -qx gd; \
     php -m | grep -qx imagick; \
